@@ -1,0 +1,3 @@
+flume-ng agent -n TwitterAgent -c conf -f twitter-parties.conf -Dflume.root.logger=DEBUG,console
+
+Required jar files need to be in $FLUME_HOME/lib (e.g. symlink)

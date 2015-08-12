@@ -1,0 +1,5 @@
+data/
+fig/
+log/
+metastore_db/
+*.log

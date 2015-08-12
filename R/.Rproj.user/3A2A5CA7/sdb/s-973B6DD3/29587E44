@@ -1,0 +1,17 @@
+{
+    "contents" : "rm(list=ls())\n\nlibrary(igraph)\nlibrary(networkD3)\nlibrary(tcltk)\nlibrary(rgl)\nlibrary(dplyr)\n\nsetwd(\"~/Code/tweetonomy/R\")\nsource('utils.R')\n\n\n# Graph from edge lists\ncolnames = c(\"from\", \"to\", \"weight\")\nfnm = \"~/Code/tweetonomy/data/retweets-parties-20150804.txt\"\nedge_list = read.table(fnm, sep='\\t', header=F, col.names=colnames)\ng = graph.data.frame(edge_list)\n\n# Stats\n# --------------------------------------------------------------------\nis.connected(g)\ntable(sapply(decompose(g), vcount))\ncomponent_sizes(g, \"weak\")\nkcore_dist(g)\nvcount(g)\necount(g)\n\n# communities\ncoms = find_communities(g, 'fast_greedy')\nhead(sort(sizes(coms), decreasing=T), 25)\n\n# dplyr version\n# --------------------------------------------------------------------\ncommunity_algo = \"fast_greedy\"\n# h = g %>% \n#   simplify(edge.attr.comb=list(weight=\"sum\")) %>%\n#   filter_small_components(min_size=3, mode=\"weak\") %>%\n#   filter_min_coreness(min_coreness=2) %>%\n#   filter_topn_communities(n=10, algo=community_algo) %>%\n#   filter_isolates() %>%\n#   g_plot(layout=NULL, colorAttr=NULL, mode='r')\n\nh = g %>% \n  simplify(edge.attr.comb=list(weight=\"sum\")) %>%\n  filter_topn_components(topn=1, mode=\"weak\") %>%\n  filter_topn_communities(n=10, algo=community_algo) %>%\n  filter_isolates() %>%\n  g_plot(layout=NULL, colorAttr=NULL, mode='r')\n\nh = g_plot(h, layout=with_drl(), colorAttr=NULL, mode='r')\n\n# Highlight community \"leaders\"\ncents = centralities(h)\ngroup_acts = important_actors_by_com(h, topn=3, centrality=\"degree\")\ngroup_acts = c(\"PPopular\", \"ahorapodemos\", \"iunida\", \"CiudadanosCs\", \"PSOE\")\nincl_verts = which((V(h)$name %in% unlist(group_acts)))\nV(h)$label = NA\nV(h)[incl_verts]$label = V(h)[incl_verts]$name\ng_plot(h, layout=with_drl(), colorAttr=NULL, mode='r', emph_ids=incl_verts)\n\n\n# Join vertices with hashtag count\nnodedf = igraph:::as_data_frame(h, what=\"vertices\")\ntag_list = function(str) {\n  return (strsplit(gsub(\"[\\\\[\\\\]]\", \"\", str, perl=T), ','))\n}\nusertags = read.table(\"~/Code/tweetonomy/data/hashtags-by-user-20150804.txt\", sep='\\t', header=F, col.names=c(\"name\", \"hashtags\"))\nusertags$tags = tag_list(usertags$hashtags)\nusertags$num = sapply(usertags$tags, length)\nusertags$hashtags = NULL\n\n# Remove most common tags (e.g. \"greece\")\nn = 7\ntagfreq = sort(table(unlist(usertags$tags)), decr=T)\ncommon_tags = names(tagfreq[1:n])\nusertags$tagsred = sapply(usertags$tags, FUN=function(x) { \n  y = unlist(x);\n  return(y[!(y %in% common_tags)]) })\n  #return(x[x != \"greece\"]) })\n\n# Not all users will appear in user_tags, as some users will \n# have tweeted always without hashtags!\nnum_top_tags = 5\ninnerdf = inner_join(nodedf, usertags, by='name')\ncomtags = innerdf %>% \n  group_by(com) %>%\n  summarise(top=list(head((sort(table(unlist(tags)), decr=T)), num_top_tags)))\n\ncomtags$top\n",
+    "created" : 1437998366383.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1134366917",
+    "id" : "29587E44",
+    "lastKnownWriteTime" : 1438785901,
+    "path" : "~/Code/tweetonomy/R/small_graph.R",
+    "project_path" : "small_graph.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}

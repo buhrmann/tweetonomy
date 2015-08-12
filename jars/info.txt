@@ -1,0 +1,4 @@
+- hive-serdes-1.0-SNAPSHOT.jar contains json serde for hive
+- cloudera-json-serde.jar is same as above
+- twitterutil-1.0-SNAPSHOT.jar contains hive path filter which avoids processing .temp files in mapreduce.
+- flume-source-1.0-SNAPSHOT.jar contains a twitter source for flume

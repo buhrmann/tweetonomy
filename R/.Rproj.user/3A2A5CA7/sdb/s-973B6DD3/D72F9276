@@ -1,0 +1,17 @@
+{
+    "contents" : "# http://www.slideshare.net/rdatamining/text-mining-with-r-an-analysis-of-twitter-data\nlibrary(tm)\nlibrary(SnowballC)\nlibrary(wordcloud)\nlibrary(fpc)\nlibrary(topicmodels)\n\ncolnames = c(\"id\", \"text\")\ntweets = read.csv(\"~/Code/tweetonomy/data/tweets-20150727.txt\", sep='\\t', header=F, \n                  col.names=colnames, quote=\"\", stringsAsFactors=F,\n                  comment.char=\"\")\n\ncorp = Corpus(VectorSource(tweets$text))\ncorp = tm_map(corp, content_transformer(tolower))\ncorp = tm_map(corp, removePunctuation)\ncorp = tm_map(corp, removeNumbers)\n\nremoveUrl = function(x) gsub(\"http[[:alnum:]]*\", \"\", x)\ncorp = tm_map(corp, content_transformer(removeUrl))\n\nstops = c(stopwords(\"english\"), \"rt\")\ncorp = tm_map(corp, removeWords, stops)\n\norig_corp = corp\ncorp = tm_map(corp, stemDocument, language=\"english\")\ncorp = tm_map(corp, stripWhitespace)\n\n# Counting\n#sum(unlist(tm_map(corp, content_transformer(grep), pattern=\"\\\\<varoufakis\")))\n\n# Remove tweets empty after rpreprocessing\n# https://stackoverflow.com/questions/13944252/remove-empty-documents-from-documenttermmatrix-in-r-topicmodels\ndtm = DocumentTermMatrix(corp)\nrowtotal = apply(dtm, 1, sum)\nempty_rows = dtm[rowtotal == 0, ]$dimnames$Docs\ncorp = corp[-as.numeric(empty_rows)]\n\ntdm = TermDocumentMatrix(corp)\nidx = which(dimnames(tdm)$Terms == \"varoufaki\")\ninspect(tdm[idx+(-2:2),1:10])\n\n# Frequent words\nfreq_terms = findFreqTerms(tdm, lowfreq=300)\nprint(freq_terms)\n\n# Associations\nfindAssocs(tdm, \"varoufaki\", 0.2)\n\n# Word cloud\nm = as.matrix(tdm)\nword_freq = sort(rowSums(m), decr=T)\nwordcloud(words=names(word_freq), freq=word_freq, min.freq=300, random.order=F)\n\n# Cluster words\nsparse_thresh = 0.98\ntdm2 = removeSparseTerms(tdm, sparse=sparse_thresh)\nm2 = as.matrix(tdm2)\ndistMat = dist(scale(m2))\nfit = hclust(distMat, method=\"ward.D\")\nplot(fit)\nrect.hclust(fit, k=6)\n\n# Cluster documents using kmeanskm$center\nset.seed(122)\nk = 6\nm3 = t(m2)\nkm = kmeans(m3, k)\nround(km$centers, digits=3) # cluster centers\n\nfor (i in 1:k) {\n  cat(paste(\"cluster \", i, \": \", sep=\"\"))\n  s = sort(km$centers[i,], decr=T)\n  cat(names(s)[1:10], \"\\n\")\n  #print the tweets of every cluster\n  #print(tweets[which(km$cluster==i)])\n}\n\n# Partitioning around medoids (too slow... don;t execute)\n#pamr = pamk(m3, metric=\"manhattan\")\n#k = pamr$nc\n#...\n\n# Topc modelling\ndtm = as.DocumentTermMatrix(tdm)\nlda = LDA(dtm, k=5)\nterm = terms(lda, 6)\nterm\ntopic = topics(lda, 1)\n",
+    "created" : 1438600164176.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1280083560",
+    "id" : "D72F9276",
+    "lastKnownWriteTime" : 1438772522,
+    "path" : "~/Code/tweetonomy/R/topics.R",
+    "project_path" : "topics.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}
