@@ -3,3 +3,4 @@ fig/
 log/
 metastore_db/
 *.log
+.Rproj.user

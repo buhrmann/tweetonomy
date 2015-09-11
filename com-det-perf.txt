@@ -1,0 +1,9 @@
+Performance of community detection algorithms on whole graph (largest weak component):
+
+Info map:       3.88 min (very different from louvain and fast_greedy !!!)
+Fast-greedy:    14.7 mins
+Walktrap:       Too long (needs > 10gb of memory...)
+Multi-level:    ~2 sec (linear)
+Louvain:        ~2 sec (same algo as multi-level)   
+Labelprop:      Doesn't terminate it seems
+  
