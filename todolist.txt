@@ -1,35 +1,51 @@
 
 Social Network Autonomy:
- ☐ Compare com. algos on global network (seems louvain is best?)
- ☐ Break down of node neighbourhood affiliation
- ☐ Cache global network and communities, along with basic stats (#N, #E, etc.), mention, retweet and combined!
+ ☐ Combined graph layers duplicate tweets as some will be both a retweet and a mention !!!
+ ✔ Finish refactoring of hashtag_freq functions to use day_users instead of more costly, but unnecessary (confirm!) day_graph! @done (15-10-23 19:00)
+ ☐ !!!Check whether to use strength() instead of degree everywhere (i.e. #tweets not #different users retweeted)!!!
+ ☐ Make all mode/layer dependent functions also apply to "both" kinds.
+ ☐ Cache R, M and B global networks separately!
+ ☐ Overview of all current analytics. Dynamic report?
+ ☐ Determine and select two separate periods (catalan elections, general elections)
+ ☐ Limit geo, limit language ?
+ ☐ Do hashtag series for mention network and combined network
+ ☐ Time resolution of time series
+ ☐ Sentiment analysis applied to media consumption
+ ☐ Keyword extraction (e.g. Garcia2015)
+ ☐ Compare retweet, mention and combined networks
+   ☐ To compare retweets and mentions, calculate overlap of two networks (Jaccard coefficient, see Garcia 2015).§
  ☐ Small world? Scale-free?
  ☐ In hashtags-by-user consider actual number of hashtag occurences (at the moment only presence is returned)?
- ☐ Reconsider tracked users and keywords
  ☐ Compare communities:
-   ☐ densities, #nodes, #edges, average degree, average link embeddedness (social cohesion:Arnau), 
    ☐ hashtag popularity 
-   ☐ extract largest clique, core (compare size of largest e.g.)
    ☐ content: messages(hashtags) more similar within community than across? (Conover2011)
-   ☐ hierarchical structure (Aragon2015): 
-     ☐ gini coefficient
-     ☐ in-degree centrality
-   ☐ information efficiency (Aragon2015):
-     ☐ average path length (short in small world)
-     ☐ clustering coefficient (large in small world)
-   ☐ social resilience (Aragon2015):
-     ☐ k-core decomposition
-
- ☐ Measure modularity
- ☐ Compare retweet, mention and combined networks
- ☐ Improve community labelling (create alternative core-members, detect largest clique/core)
- ☐ Improve community detection by running algo several times and taking majority vote or similar?
-   ☐ Also try to run across days and take only those belonging to same group in at least x % of days...
-   ☐ Look again at total network, identify communities, then each day filter out those nodes not in the global communities
- ☐ Plots:
-   ☐ Distribution of cluster sizes (justify cutoff at 10 or whatever) and modularity (compare different algorithms)
-   ☐ Interaction matrix: count of retweets between any two clusters (Aragon2015)
-
  ☐ Pick two hashtags and calculate transfer entropy between communities
 
  Measure endogemy of ideas readers and media.
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+Archive:
+ ✔ Make small_graph.R a file analyzing day network @done (15-10-23 18:10) @project(Social Network Autonomy)
+ ✔ Reconsider tracked users and keywords @done (15-10-23 18:10) @project(Social Network Autonomy)
+ ✔ Improve community detection by running algo several times and taking majority vote or similar? @done (15-10-23 18:10) @project(Social Network Autonomy)
+ ✔ Also try to run across days and take only those belonging to same group in at least x % of days... @done (15-10-23 18:10) @project(Social Network Autonomy)
+ ✔ Look again at total network, identify communities, then each day filter out those nodes not in the global communities @done (15-10-23 18:11) @project(Social Network Autonomy)
+ ✔ Cache global network and communities, along with basic stats (#N, #E, etc.), mention, retweet and combined! @done (15-09-22 18:45) @project(Social Network Autonomy)
+ ✔ Plots: @done (15-09-17 14:11) @project(Social Network Autonomy)
+ ✔ Distribution of cluster sizes (justify cutoff at 10 or whatever) and modularity (compare different algorithms) @done (15-09-17 14:11) @project(Social Network Autonomy)
+ ✔ Improve community labelling (create alternative core-members, detect largest clique/core) @done (15-09-17 14:10) @project(Social Network Autonomy)
+ ✔ Measure modularity @done (15-09-16 15:27) @project(Social Network Autonomy)
+ ✔ social resilience (Aragon2015): @done (15-09-16 15:26) @project(Social Network Autonomy)
+ ✔ information efficiency (Aragon2015): @done (15-09-16 15:26) @project(Social Network Autonomy)
+ ✔ hierarchical structure (Aragon2015):  @done (15-09-16 15:26) @project(Social Network Autonomy)
+ ✔ k-core decomposition @done (15-09-16 15:25) @project(Social Network Autonomy)
+ ✔ in-degree centrality @done (15-09-16 15:25) @project(Social Network Autonomy)
+ ✔ gini coefficient @done (15-09-16 15:25) @project(Social Network Autonomy)
+ ✔ extract largest clique, core (compare size of largest e.g.) @done (15-09-16 15:25) @project(Social Network Autonomy)
+ ✔ densities, #nodes, #edges, average degree, average link embeddedness (social cohesion:Arnau),  @done (15-09-16 15:25) @project(Social Network Autonomy)
+ ✔ clustering coefficient (large in small world) @done (15-09-16 15:25) @project(Social Network Autonomy)
+ ✔ average path length (short in small world) @done (15-09-16 15:25) @project(Social Network Autonomy)
+ ✔ Interaction matrix: count of retweets between any two clusters (Aragon2015) @done (15-09-16 15:25) @project(Social Network Autonomy)
+ ✔ density: compare retweets within com. to those outside (interaction/similarity matrix) @done (15-09-16 15:24) @project(Social Network Autonomy)
+` ✔ Compare com. algos on global network (seems louvain is best?) @done (15-09-16 14:20) @project(Social Network Autonomy)
+ ✔ Break down of node neighbourhood affiliation @done (15-09-16 14:20) @project(Social Network Autonomy)

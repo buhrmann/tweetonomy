@@ -1,0 +1,36 @@
+body {
+   background-color: #fff;
+}
+
+.table, .table-condensed {
+  width: initial;
+  min-width: 400px;
+}
+
+colgroup {
+  display: none;
+}
+
+/* More spacing */
+.table-condensed>thead>tr>th, 
+.table-condensed>tbody>tr>th, 
+.table-condensed>tfoot>tr>th, 
+.table-condensed>thead>tr>td, 
+.table-condensed>tbody>tr>td, 
+.table-condensed>tfoot>tr>td,
+td, th {
+  padding: 6px;
+}
+
+/* But not in th when sorting disabled */
+table.dataTable thead > tr > th.sorting_disabled {
+    padding-right: 0px;
+}
+
+
+.caption {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    color: #aea79f;
+    text-align: left;
+}

@@ -1,17 +1,9 @@
-library(dplyr)
-library(ggplot2)
+# --------------------------------------------------------------------------------
+# rm(list=ls())
+# --------------------------------------------------------------------------------
+source('common.R')
 
-# Setup directories
-root_dir = "~/Code/tweetonomy/"
-tblnm = "parties"
-data_dir = paste0(root_dir, "data/", tblnm, "/")
-
-setwd(paste0(root_dir, "R"))
-
-source('utils.R')
-source('plotutils.R')
-source('fileutils.R')
-
+tagfreqs_fnm = paste0(data_dir, "r-cache/tagfreqs.Rdata")
 tagfreqs = get_cached("tagfreqs", tagfreqs_fnm)
 
 # Collect all tag frequencies into long data frame
@@ -51,21 +43,24 @@ tag_intersect_day = function(topn) {
 
 # Explore
 # ---------------------------------------------------------------------------
-common_tags = tag_intersect_day(5)
-ctag = names(common_tags[3])
+common_tags = tag_intersect_day(10)
+ctag = names(common_tags[2])
 
 tags_df = tag_all_df()
 tags_df %>%
   group_by(tag) %>%
   summarise(freq = sum(Freq)) %>%
-  arrange(desc(freq))
+  arrange(desc(freq)) %>%
+  print(n=50)
 
 plot_tagfreq = function(tagval) {
   d = filter(tags_df, tag==tagval)
-  print(d)
-  ggplot(d, aes(x=day, y=Freq, color=aff)) + 
+  #print(d)
+  ggplot(d, aes(x=day, y=Freq, colour=aff)) + 
     geom_line() + theme_minimal() +
     ggtitle(tagval)
 }
 
-plot_tagfreq("fernandezdiaz")
+plot_tagfreq("pge2016") + scale_color_manual(values=unlist(party_colors))
+
+

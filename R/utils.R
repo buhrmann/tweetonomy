@@ -7,13 +7,23 @@ library(dplyr)
 library(ggplot2)
 library(RColorBrewer)
 library(stringi)
+library(reldist)
+
+list_to_df = function(l){
+  ldf = lapply(l, function(x) data.frame(x))
+  df = data.frame(ldf)
+  names(df) = names(l)
+  df
+}
+
 
 vertex_attribs = function(graph, ids, sort_by=NULL){
-  df = data.frame(sapply(vertex_attr_names(graph),function(x) vertex_attr(graph, x, index=ids)))
+  named = sapply(vertex_attr_names(graph), function(x) vertex_attr(graph, x, index=ids), simplify=F, USE.NAMES=T)
+  df = list_to_df(named)
   if (!(is.null(sort_by))) {
     df = df[order(-as.numeric(df[[sort_by]])),]
   }
-  return(df)
+  df
 }
 
 # --------------------------------------------------------------------------------
@@ -33,7 +43,19 @@ weight_dist = function(graph) {
   table(E(graph)$weight)
 }
 
-centrality_names = list("degree", "indeg", "outdeg", "between", "eigen", "close", "auth", "hub", "pgrank")
+basic_stats = function(g) {
+  data.frame("vertex_count" = vcount(g),
+             "edge_count" = ecount(g),
+             "tweets" = sum(E(g)$weight),
+             "max_comp_size" = max(components(g)$csize),
+             "max_coreness" = max(coreness(g)))
+}
+
+centrality_names = c("degree", "indeg", "outdeg", "between", "eigen", "close", "auth", "hub", "pgrank")
+
+centralization_names = c("indeg_ineq", "outdeg_ineq", "pgrank_ineq", "indeg", "outdeg", "between", "close", "eigen", "avg_path_len",
+                            "max_core", "density", "reciprocity", "transitivity", "size", "weight", "num_edges")
+
 
 centrality = function(graph, centrality='eigen', norm=T) {
   switch(centrality,
@@ -49,6 +71,28 @@ centrality = function(graph, centrality='eigen', norm=T) {
          )
 }
 
+centralization = function(graph, centrality='eigen', vids=V(graph)) {
+  switch(centrality,
+         indeg_ineq = gini(degree(graph, v=vids, mode="in")),
+         outdeg_ineq = gini(degree(graph, v=vids, mode="out")),
+         pgrank_ineq =  gini(page_rank(graph, vids=vids)$vector),
+         indeg = centr_degree(graph, mode="in")$centralization,
+         outdeg = centr_degree(graph, mode="out")$centralization,
+         between = centr_betw(graph)$centralization, # SLOW !
+         close = centr_clo(graph, mode="all")$centralization, # SLOW !
+         eigen = centr_eigen(graph, directed=T)$centralization,
+         avg_path_len = mean_distance(graph), # SLOWISH !
+         max_core = max(coreness(graph)),
+         density = edge_density(graph),
+         reciprocity = reciprocity(graph),
+         transitivity = transitivity(graph, type="global"),
+         size = vcount(graph),
+         weight = sum(E(graph)$weight),
+         num_edges = ecount(graph)
+  )
+}
+
+
 centralities = function(graph, norm=TRUE, plot=FALSE) {
   cents = lapply(centrality_names, FUN=centrality, graph=graph, norm=norm)
   cents = as.data.frame(do.call(cbind, cents))
@@ -63,6 +107,23 @@ centralities = function(graph, norm=TRUE, plot=FALSE) {
       xlab("Betweenness") + ylab("EV")
   }
   return(cents)
+}
+
+
+# Compute all centralization measures for all groups
+com_centralizations = function(g, grp_by="aff", verbose=F, except=c("between", "close", "avg_path_len")) {
+  # Get a single centralization measure (by name) for all groups
+  com_c = function(measure) { gapply(g, grp_by=grp_by, FUN=function(gr, v) centralization(gr, measure, v), induce=T) }
+  # Now apply to all available measures
+  cns = centralization_names[!centralization_names %in% except]
+  c = sapply(seq(cns), FUN=function(i) { 
+    if (verbose) print(sprintf("Calculating measure %s (%i of %i)", cns[[i]], i, length(cns)))
+    com_c(cns[[i]]) 
+  }) 
+  c = data.frame(c)
+  colnames(c) = cns
+  c$avg_weight = c$weight / c$num_edges
+  c
 }
 
 
@@ -93,6 +154,8 @@ important_actors_to_df = function(ia) {
   return(cbind.data.frame(lapply(ia, names)))
 }
 
+ia2df = important_actors_to_df
+
 # Calculates the topn_per actors for each community and each centrality measure
 # Then returns the topn based on the rank of each actor, i.e. after calculating
 # how many times an actors appeared in the topn_per centralities
@@ -102,6 +165,34 @@ important_actors_overall = function(graph, topn_per=10, topn=3) {
   }))
   topn_by_com = sapply(combined, FUN=function(x){names(sort(table(x), decr=T))[1:topn]})
   return(as.data.frame(topn_by_com))
+}
+
+
+# Applies function FUN to each group of vertices determined by equal values of grp_by.
+# If induce==T, the FUN is applied on induced subgraph of nodes in group.
+# FUN must be a function with two arguments: first an igraph, second a 
+# vertex sequence (that must belong to the corresponding graph)!
+gapply = function(graph, grp_by, FUN, induce=T) {
+  grp_names = names(group_sizes(graph, grp_by))
+  if (induce) {
+    sapply(grp_names, function(x) {
+      grp = get_group(graph, x, grp_by)
+      sub = induced_subgraph(graph, grp)
+      FUN(sub, V(sub))
+    })
+  } else {
+    sapply(grp_names, function(x) {
+      grp = get_group(graph, x, grp_by)
+      FUN(graph, grp)
+    })
+  }
+}
+
+
+# Gini coefficient for distribution of degree within each group
+degree_inequality = function(graph, grp_by, mode="in", induce=T) {
+  f = function(gr, vids) {  gini(degree(gr, vids, mode=mode)) }
+  gapply(graph, grp_by, f, induce)
 }
 
 
@@ -260,6 +351,11 @@ filter_attr_in = function(graph, attr, attr_vals) {
   induced_subgraph(graph, incl_verts)
 }
 
+filter_attr_not_in = function(graph, attr, attr_vals) {
+  excl_verts = which(vertex_attr(graph, attr) %in% attr_vals)
+  delete_vertices(graph, excl_verts)
+}
+
 filter_min_degree = function(graph, min_deg=2) {
   delete_vertices(graph, which(degree(graph) < min_deg))
 }
@@ -272,26 +368,83 @@ filter_min_weight = function(graph, min_w=2) {
   delete_edges(graph, which(edge_attr(graph, "weight") < min_w))  
 }
 
+filter_in_other = function(graph, other) {
+  induced_subgraph(graph, which(V(graph)$name %in% V(other)$name))
+}
+
 
 # --------------------------------------------------------------------------------
 # Affiliation: Identify groups of nodes
 # --------------------------------------------------------------------------------
-party_affiliations = list("podemos"=c("ahorapodemos", "Pablo_Iglesias_", "ierrejon"), 
-                    "catalunya"=c("CatalunyaNoPots", "HiginiaRoig"), 
-                    "ciudadanos"=c("Albert_Rivera", "CiudadanosCs"), 
-                    "pp"=c("marianorajoy", "PPopular"), 
-                    "psoe"=c("PSOE", "gpscongreso"), 
-                    "iu"=c("cayo_lara", "iunida"), 
-                    "upyd"=c("UPyD", "Csilva2Carlos", "cmgorriaran"),
-                    "vox"=c("vox_baracaldo", "vox_guipuzcoa"),
-                    "prensa"=c("el_pais", "europapress", "20m"),
-                    "prensa"=c("el_pais", "ElHuffPost", "eljueves"),
-                    "izquierda"=c("BeatrizTalegon") )
+party_affiliations = list(
+  "podemos"=c("ahorapodemos", "Pablo_Iglesias_", "ierrejon"), 
+  "catalunya"=c("CatalunyaNoPots", "HiginiaRoig"), 
+  "ciudadanos"=c("Albert_Rivera", "CiudadanosCs"), 
+  "pp"=c("marianorajoy", "PPopular"), 
+  "psoe"=c("PSOE", "gpscongreso"), 
+  "iu"=c("cayo_lara", "iunida"), 
+  "upyd"=c("UPyD", "Csilva2Carlos", "cmgorriaran"),
+  "vox"=c("vox_baracaldo", "vox_guipuzcoa"),
+  "prensa_"=c("el_pais", "europapress", "20m"),
+  "prensa"=c("el_pais", "ElHuffPost", "eljueves"),
+  "animalistas"=c("PartidoPACMA", "kikupipo", "MarinaDLuna"),
+  "izquierda"=c("BeatrizTalegon") )
+
+party_affiliations_new = list(
+  "podemos"=c("ahorapodemos", "Pablo_Iglesias_", "ierrejon"), 
+  "ciudadanos"=c("Albert_Rivera", "CiudadanosCs"), 
+  "pp"=c("marianorajoy", "PPopular"), 
+  "psoe"=c("PSOE", "gpscongreso"), 
+  "iu"=c("cayo_lara", "iunida"), 
+  "upyd_"=c("UPyD", "Csilva2Carlos", "cmgorriaran"),
+  "upyd"=c("UPyD", "Herzogoff", "rossadiezupyd"),
+  "cdc"=c("ConvergenciaCAT", "ArturMasCat"),
+  "udc"=c("unio_cat", "DuralLleida"),
+  "ciu"=c("ConvergenciaCAT", "unio_cat"),
+  "catalunya"=c("CatalunyaNoPots", "HiginiaRoig"), 
+  "vox"=c("vox_baracaldo", "vox_guipuzcoa"),
+  "prensa_"=c("el_pais", "europapress", "20m"),
+  "prensa"=c("el_pais", "ElHuffPost", "eljueves"),
+  "animalistas"=c("PartidoPACMA", "kikupipo", "MarinaDLuna"),
+  "izquierda"=c("BeatrizTalegon") )
+
+party_colors = list()
+party_colors[names(party_affiliations)]=""
+party_colors$podemos = "#612F62"
+party_colors$pp = "#1AA1DB"
+party_colors$iu = "#DA0B31"
+party_colors$ciudadanos = "#E96A32"
+party_colors$cdc = "#d3d323"
+party_colors$udc = "#d3d323"
+party_colors$ciu = "#d3d323"
+party_colors$catalunya = "#d3d323"
+party_colors$psoe = "#DF1223"
+party_colors$upyd = "#E0147B"
+party_colors$vox = "#6BBD1F"
+party_colors$unknown = "#cccccc"
+party_colors$prensa = "#666666"
+party_colors$prensa_ = "#666666"
+
+# Alternative 1
+party_colors$podemos = "#582C87"
+party_colors$pp = "#02B3F4"
+party_colors$iu = "#C30202"
+party_colors$ciudadanos = "#FF800E"
+party_colors$catalunya = "#d3d323"
+party_colors$erc = "FFC302"
+party_colors$ciu = "FFC302"
+party_colors$psoe = "#FF0202"
+party_colors$upyd = "#F9028A"
+party_colors$vox = "#6BBD1F"
+party_colors$unknown = "#cccccc"
+party_colors$prensa = "#666666"
+party_colors$prensa_ = "#666666"
 
 
 # Checks if members of affiliations list are all inside grp
 group_affiliation = function(grp, affiliations=party_affiliations) {
-  for (aff in names(affiliations)) {
+  aff_names = names(affiliations)
+  for (aff in aff_names) {
     if (all(affiliations[[aff]] %in% names(grp))) {
       return(aff)
     }
@@ -325,18 +478,78 @@ neighbour_affiliations = function(graph, node, grp_by="aff", mode="all") {
   group_sizes(graph, grp_by, n)
 }
 
+# Break down a node's neighbourhood by affiliation
+# Returns proportion of a community that belongs to a certain group
+# E.g. podemos=0.3 if podemos members in the neighbourhood of node_name make up 30% of podemos total
+neighbour_affiliations_prop = function(g, node_name, grp_by="aff") {   
+  node_aff = neighbour_affiliations(g, node_name, grp_by=grp_by, mode="in")
+  gsizes = group_sizes(g, grp_by)
+  aff_rel = node_aff / gsizes[names(node_aff)]
+  sort(aff_rel, decr=T)
+}
+
+
 # As above for named membership list, rather than graph
-affiliation_map_list = function(named_list, affiliations=party_affiliations) {
-  grpnames = names(group_sizes_list(named_list))
-  sapply(grpnames, function(x) group_affiliation(get_group_list(named_list, x), affiliations))
+affiliation_map_list = function(named_list, affiliations=party_affiliations, topn_grps=10) {
+  grpnames = names(group_sizes_list(named_list)[1:topn_grps])
+  print(sprintf("Processing affiliations for %i groups.", length(grpnames)))
+  sapply(grpnames, function(x) { 
+    group_affiliation(get_group_list(named_list, x), affiliations)
+  })
 }
 
-affiliations_list = function(named_list, affmap=NULL) {
-  if (is.null(affmap))
+
+affiliations_list = function(named_list, affmap=NULL, topn_grps=10) {
+  if (is.null(affmap)) {
+    print("Building affiliations mapping.")
     affmap = affiliation_map_list(named_list)
-  sapply(as.character(named_list), function(grpval) affmap[[grpval]], USE.NAMES=F)
+    print(affmap)
+  }
+  print("Mapping group value to affiliation for each node...")
+  aff_names = names(affmap)
+  sapply(as.character(named_list), function(grpval) {
+    ifelse(grpval %in% aff_names, affmap[[grpval]], NA)
+    }, USE.NAMES=F)
 }
 
+
+edges_between_grps = function(graph, from, to, grp_by="aff") {
+  from_vids = get_group(graph, from, grp_by=grp_by)
+  to_vids = get_group(graph, to, grp_by=grp_by)
+  E(graph)[from_vids %->% to_vids]
+}
+
+# Sum of weighted connections between two groups of vertices
+# (Directed: only from a to b considered)
+total_weight_between = function(graph, from, to, grp_by="aff", scale=T) {
+  edges = edges_between_grps(graph, from, to, grp_by)
+  W = sum(edges$weight)
+  if (scale) {
+    from_grp = get_group(g, from, grp_by)
+    all_out = E(graph)[from(from_grp)]
+    W = W / sum(all_out$weight)
+  }
+  W
+}
+
+
+# Calculates the sum of weights for connections between all different groups
+interaction_matrix = function(graph, grp_by="aff", scale=T) {
+  grps = names(group_sizes(graph, grp_by=grp_by))
+  num_grps = length(grps)
+  df = data.frame(matrix(nrow=num_grps, ncol=num_grps))
+  rownames(df) = grps
+  colnames(df) = grps
+  i = 0
+  for (r in rownames(df)) {
+    for (c in colnames(df)) {
+      print(sprintf("Calculating interaction %i of %i.", i+1, num_grps^2))
+      df[r, c] = total_weight_between(graph, r, c, grp_by, scale)
+      i = i + 1
+    }
+  }
+  df
+}
 
 # --------------------------------------------------------------------------------
 # Print basic stats
@@ -371,4 +584,22 @@ rm_topn = function(lol, topn) {
   })
 }
 
+# --------------------------------------------------------------------------------
+# Stats helpers
+# --------------------------------------------------------------------------------
+# bootstrapped confidence intervals ("percentile bootstrap")
+# http://stats.stackexchange.com/questions/21868/gini-coefficient-and-error-bounds
+boot_errors = function(FUN, x, rep=1000) {
+  v = FUN(x)
+  y = boot(x, FUN, rep)
+  q = quantile(y$t, probs=c(0.025, 0.975))
+  data.frame(v=v, v_min=q[[1]], v_max=q[[2]])
+}
 
+colwise_boot_errors = function(FUN, X, rep=1000) {
+  vals = apply(X, 2, FUN=function(x) boot_errors(FUN, x))
+  vals = do.call(rbind, vals)
+  vals$name = rownames(vals)
+  vals$name = factor(vals$name, levels=vals[order(vals$v), "name"])
+  vals
+}

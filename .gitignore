@@ -1,6 +1,11 @@
 data/
 fig/
 log/
+logs/
 metastore_db/
+report_cache/
+report_files/
 *.log
 .Rproj.user
+.RData
+.Rhistory

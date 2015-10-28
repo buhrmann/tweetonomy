@@ -1,75 +1,162 @@
-
+# --------------------------------------------------------------------------------
+#
+# --------------------------------------------------------------------------------
 source('common.R')
-
+source('mediautils.R')
 community_algo = "louvain"
 topn_coms = 10
-ggraph_fnm = paste0(data_dir, "r-cache/global-graph.Rdata")
-total_edgelist_fnm = paste0(data_dir, "retweet-edges/all-retweet-edges.txt")
 
-GG = global_graph(ggraph_fnm, total_edgelist_fnm, community_algo)
-GG = GG %>% 
-  simplify(edge.attr.comb=list(weight="sum")) %>%
-  filter_topn_components(topn=1, mode="weak")
+
+# Get graph
+# --------------------------------------------------------------------------------
+r = process_ggraph(mode="R")
+m = process_ggraph(mode="M")
+
+# Communities most often categorizes as "unknown"
+V(g)$degree = degree(g)
+unk = vertex_attribs(g, which(V(g)$aff=="unknown"), sort_by="degree") %>% 
+  group_by(com) %>% 
+  summarize(cnt=n()) %>% 
+  arrange(desc(cnt))
+
+head(vertex_attribs(g, which(V(g)$com==unk$com[1]), sort_by="degree"), 10)
+head(vertex_attribs(g, which(V(g)$com==unk$com[2]), sort_by="degree"), 10)
+
+g = filter_attr_not_in(g, attr="aff", c("animalistas", "unknown"))
+
+# Assign colors
+# pcolors = as.list(group_sizes(g, "aff"))
+# pcolors$podemos = "#612F62"
+# pcolors$pp = "#1AA1DB"
+# pcolors$iu = "#DA0B31"
+# pcolors$ciudadanos = "#E96A32"
+# pcolors$catalunya = "#d3d323"
+# pcolors$psoe = "#DF1223"
+# pcolors$upyd = "#E0147B"
+# pcolors$vox = "#6BBD1F"
+# pcolors$unknown = "#cccccc"
+# pcolors$prensa = "#666666"
 
 # Basic stats
 # --------------------------------------------------------------------------------
-vcount(GG)
-ecount(GG)
-component_sizes(GG, "weak")
-component_sizes(GG, "strong")
-kcore_dist(GG)
+vcount(g)
+ecount(g)
+component_sizes(g, "weak")
+component_sizes(g, "strong")
+kcore_dist(g)
+modularity(g$communities)
 
 # Weight distribution
-weight_dist(GG)
-barplot(weight_dist(GG), log="xy")
-ggplot(plyr::count(E(GG)$weight), aes(x=x, y=freq)) + geom_point(stat='identity') + scale_y_log10() + scale_x_log10() + theme_minimal()
+weight_dist(g)
+barplot(weight_dist(g), log="xy")
+ggplot(plyr::count(E(g)$weight), aes(x=x, y=freq)) + geom_point(stat='identity') + scale_y_log10() + scale_x_log10() + theme_minimal()
 
 # Degree distribution
-barplot(table(degree(GG)), log="xy")
-ggplot(plyr::count(degree(GG)), aes(x=x, y=freq)) + geom_point(stat='identity') + scale_y_log10() + scale_x_log10() + theme_minimal()
+barplot(table(degree(g)), log="xy")
+ggplot(plyr::count(degree(g)), aes(x=x, y=freq)) + geom_point(stat='identity') + scale_y_log10() + scale_x_log10() + theme_minimal()
 
 # Community size distribution
-group_sizes(GG, "com")
-plot(group_sizes(GG, "com"), log="xy", pch=20, xlab="group index", ylab="size")
-
-# Compare algos
-GG$communities_lv = find_communities(GG, "louvain")
-V(GG)$com_lv = membership(GG$communities_lv)
-V(GG)$affl = affiliations_list(membership(GG$communities))
-V(GG)$affl_lv = affiliations_list(membership(GG$communities_lv))
-unmatched = which(V(GG)$affl != V(GG)$affl_lv)
-top_unmatched = head(sort(degree(GG, unmatched), decr=T), 20)
-vertex_attribs(GG, names(top_unmatched))
-vertex_attribs(GG, names(head(sort(degree(GG, which(V(GG)$affl=='unknown')), decr=T), 10)) )
-vertex_attribs(GG, names(head(sort(degree(GG, which(V(GG)$affl_lv=='unknown')), decr=T), 10)) )
-# Pairwise count of non-matching affiliations
-all_unmatched = vertex_attribs(GG, unmatched)
-table(all_unmatched$affl, all_unmatched$affl_lv)
+plot_group_sizes(g) + scale_color_manual(values=pcolors)
 
 
-# Identify important actors
-important_actors_to_df(important_actors_by_com(GG, topn=10, centrality="pgrank", grp_by="affl"))
-important_actors_to_df(important_actors_by_com(GG, topn=10, centrality="pgrank", grp_by="affl_lv"))
-save(GG, file=ggraph_fnm)
+# Identify important actors by centrality
+centr = "indeg"
+acts = important_actors_by_com(g, topn=10, centrality=centr, grp_by="aff")
+plot_important_actors(acts, centr)
 
-# Filter
+
+# Communities' structural properties
 # --------------------------------------------------------------------------------
-FF = GG %>% 
-  simplify(edge.attr.comb=list(weight="sum")) %>%
-  filter_topn_components(topn=1, mode="weak") %>%
-  filter_topn_communities(n=10, algo=community_algo, comname="com") %>%
-  #filter_min_community_size(min_size=400) %>%
+# Show within-group inequality of centralities (e.g. in degree inequality)
+# Small world, e.g.,  means short avg path lengh and high clustering (transitivity)
+# All the following functions return measures in order of group size for consistency
+coms_df = com_centralizations(g, grp_by="aff", verbose=T, except=c())
+coms_df$name = rownames(coms_df)
+
+p1 = ggplot(coms_df, aes(x=indeg_centr, y=avg_path_len, label=name, color=name)) + 
+  geom_point(size=3) + geom_text(vjust=1.5, hjust=1) +
+  scale_x_continuous(expand=c(0.1, 0.1)) +
+  scale_y_continuous(expand=c(0.1, 0.1)) +
+  scale_color_manual(values=pcolors) +
+  theme_minimal() + theme(legend.position="none") 
+
+p2 = ggplot(coms_df, aes(x=indeg_centr, y=max_coreness, label=name, colour=name)) + 
+  geom_point(size=3) + geom_text(vjust=1.5, hjust=1) +
+  scale_x_continuous(expand=c(0.1, 0.1)) +
+  scale_y_continuous(expand=c(0.1, 0.1)) +
+  scale_color_manual(values=pcolors) +
+  theme_minimal() + theme(legend.position="none") 
+
+grid.arrange(p1, p2, ncol=2)
+
+# Pairwise correlations between group measures (and 6 biggest groups)
+pairs(coms_df[1:6,-17])
+corr = round(cor(coms_df[1:6,-17]), 2)
+plot_interaction_matrix(corr)
+# Which pairwise measures have the lowest correlation?
+corr_molten = na.omit(melt(corr, value.name="Cor"))
+corr_molten = corr_molten[order(abs(corr_molten$Cor)), ]
+
+# Standard deviation of scaled measures: which measure spreads the groups out the most?
+coms_sc = apply(coms_df[,-17], 2, FUN=function(x) x/max(x))
+apply(coms_sc, 2, sd)
+
+
+ggplot(coms_df[1:6,], aes(x=pr_ineq, y=density, label=name, colour=name)) + 
+  geom_point(size=3) + geom_text(vjust=1.5, hjust=1) +
+  scale_color_manual(values=pcolors) +
+  theme_minimal() + theme(legend.position="none") 
+
+
+# Correlate grp media consumption with structural properties
+# --------------------------------------------------------------------------------
+media = get_media(g)
+media_affiliation(g, media)
+grp_med = grp_media_affiliations(g, media, "aff")     # Each grp's prop. of retweeters per media
+ginis = colwise_boot_errors(gini, grp_med, rep=1000)  # Inequality of proportions with error bars
+df = merge(coms_df, ginis, by="name")
+
+p1 = ggplot(df, aes(x=deg_ineq, y=v, label=name, colour=name)) + 
+  geom_point(size=3) + geom_text(vjust=1.5, hjust=1) +
+  #scale_x_continuous(expand=c(0.05, 0.05)) +
+  #scale_y_continuous(expand=c(0.05, 0.05)) +
+  scale_color_manual(values=pcolors) +
+  theme_minimal() + theme(legend.position="none") +
+  xlab("gini(in-degree)") + ylab("gini(media-consumption)")
+
+p2 = ggplot(df, aes(x=indeg_centr, y=v, label=name, colour=name)) + 
+  geom_point(size=3) + geom_text(vjust=1.5, hjust=1) +
+  scale_x_continuous(expand=c(0.1, 0.0)) +
+#   scale_y_continuous(expand=c(0.1, 0.1)) +
+  scale_color_manual(values=pcolors) +
+  theme_minimal() + theme(legend.position="none") +
+  xlab("centrality(in-degree)") + ylab("")
+
+grid.arrange(p1, p2, ncol=2)
+
+
+# Interaction between communities
+# --------------------------------------------------------------------------------
+# Interaction matrix
+im = round(interaction_matrix(g, grp_by="aff", scale=T), 2)
+plot_interaction_matrix(im) + xlab("retweeted") + ylab("retweeter")
+
+# Contracted plot
+cols = adjust_hsv(pcolors, "s", 0.6)
+cols = adjust_hsv(cols, "v", 1.4)
+plot_contracted_by(g, "aff", cols)
+
+
+# "Complete" graph
+# --------------------------------------------------------------------------------
+pg = g %>% 
+  filter_min_weight(5) %>%
+  filter_min_degree(3) %>%
   filter_isolates()
 
-FF = set_affiliations(FF, grp_by="com", aff_attr="aff", party_affiliations)
+vcount(pg)
+ecount(pg)
 
-# Unknown affiliations
-unknown = V(FF)[aff == "unknown"]
-top_unknown = head(sort(degree(FF, unknown), decr=T), 20)
-vertex_attribs(FF, names(top_unknown))
-unique(vertex_attr(FF, "com", unknown))
-
-group_acts = important_actors_to_df(important_actors_by_com(FF, topn=10, centrality="indeg", grp_by="aff"))
-#group_acts = important_actors_overall(h, topn_per=10, topn=2)
-print(group_acts)
-
+vcols = as.character(cols[V(pg)$aff])
+V(pg)$color = vcols
+g_plot(pg, layout=with_fr(), colorAttr=NULL)

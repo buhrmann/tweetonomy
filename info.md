@@ -54,9 +54,10 @@ Edges for:
     + Cluster users by common topics
     + Assign user a cluster label
 
-- Collection of spanish parties:
+- Collection of spanish parties (twitter-conf changed 07.10.2015 to include smaller parties and general election hashtags!!! Rajoy announced elections on 01.10.2015):
     - http://www.t-cracia.info/#/clas/Pol%C3%ADticos
     - #27S
+    - #20D, #20D2015, #Elecciones20D, (NOT #EleccionesGenerales2015. IN GUATEMALA!)
     - PSOE: 
         -  @PSOE(50982086), 
         -  @sanchezcastejon(68740712, candidato, secretario general), 
@@ -77,6 +78,18 @@ Edges for:
         - @iunida(14824411), 
         - @agarzon(11904592, candidato/portavoz), 
         - @cayo_lara(296912924, coordinador federal)
+    - Upyd:
+        - @UPyD (146150851)
+        - @Herzogoff, Andres Herzog (192618456, portavoz y candidato)
+        - @rosadiezupyd (3018165370, portavoz grupo parlamentario, diputada)
+    - ERC:
+        - @Esquerra_ERC (84053338)
+        - @junqueras, Oriol Junqueras (31416615, presidente)
+        - @martarovira, Marta Rovira (14336062, secretaria general)
+    - CiU (CDC & UDC, not separate again):
+        - ciu: @ConvergenciaCAT (10242562, CDC) @unio_cat(436799542, UDC), 
+        - @ArturMasCat, Artur Mas (2302092113, presidente CDC)
+        - @DuranLleida, Josep Antoni Duran i Lleida (194070793, portavoz en congreso, UDC)
 
 ## Other Affiliations ##1
 - independent left? 
