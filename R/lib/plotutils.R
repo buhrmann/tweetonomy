@@ -8,6 +8,9 @@ library(RColorBrewer)
 library(reshape2)
 library(gridExtra)
 library(scales)
+library(rgexf)
+
+source("layouts.R")
 
 # --------------------------------------------------------------------------------
 # Plotting helpers
@@ -19,9 +22,9 @@ g_plot = function(graph, layout=NULL, colorAttr=NULL, mode='r', emph_ids=NULL, v
   
   # Create layout
   if (is.null(layout)) {
-    layout = with_fr(niter=1000)    
+    layout = layout_with_fr(graph, niter=500)
   }
-  graph = add_layout_(graph, layout, component_wise(merge_method="dla"))
+  #graph = add_layout_(graph, layout, component_wise(merge_method="dla"))
   
   # Add vertex colors
   if (! ("color" %in% vertex_attr_names(graph))) {
@@ -65,7 +68,7 @@ g_plot = function(graph, layout=NULL, colorAttr=NULL, mode='r', emph_ids=NULL, v
     labels = NA
   }
   
-  args = list(graph, 
+  args = list(graph, layout=layout,
               vertex.label=labels,
               vertex.size=vsize, vertex.label.color="black",
               vertex.frame.color=V(graph)$vertex.frame.color,
@@ -144,11 +147,11 @@ d3_plot = function(graph) {
 
 # Plot contracted graph
 # --------------------------------------------------------------------------------
-plot_contracted_by = function(graph, grp_by, vcolors=NULL, lout=with_drl()) {
-  fac = factor(vertex_attr(graph, grp_by))
+plot_contracted_by = function(g, grp_by, vcolors=NULL, lout=with_drl()) {
+  fac = factor(vertex_attr(g, grp_by))
   grp_ids = as.integer(fac)
-  V(graph)$degree = degree(graph)
-  c = contract(graph, grp_ids, vertex.attr.comb=list(name="first", aff="first", com="first", degree="sum"))
+  V(g)$degree = degree(g)
+  c = contract(g, grp_ids, vertex.attr.comb=list(name="first", aff="first", com="first", degree="sum"))
   c = simplify(c, edge.attr.comb=list(weight="sum"))
   #set_vertex_attr(c, "name", value=vertex_attr(c, grp_by))
   c = set_vertex_attr(c, "label", value=vertex_attr(c, grp_by))

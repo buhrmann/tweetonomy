@@ -1,8 +1,17 @@
 body {
    background-color: #fff;
+   font-fanily: Tahoma, "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-.table, .table-condensed {
+
+.table,
+table.dataTable{
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 20px !important;
+}
+
+table.table, table.dataTable {
   width: initial;
   min-width: 400px;
 }
@@ -33,4 +42,9 @@ table.dataTable thead > tr > th.sorting_disabled {
     padding-bottom: 8px;
     color: #aea79f;
     text-align: left;
+}
+
+h4 em {
+  font-style: normal;
+  font-size: 16px;
 }

@@ -5,7 +5,11 @@ if [ "$#" = 1 ]; then
 fi
 
 # Make sure all partitions are loaded
-./batch-add-partitions.sh parties $startdir
+#./batch-add-partitions.sh parties $startdir
+
+# Without specified startdir will add any partition not yet added, 
+# i.e. starting from last existing (which is deleted first)
+./batch-add-partitions.sh parties
 
 # all per-day retweet and mention networks
 ./batch-query-day.sh parties retweet-edges.hql retweet-edges $startdir
@@ -23,3 +27,6 @@ fi
 # all-time retweet network
 #hive --hiveconf tbl=parties -f all-retweet-edges.hql > ../../data/parties/retweet-edges/all-retweet-edges.txt 
 #hive --hiveconf tbl=parties -f all-mention-edges.hql > ../../data/parties/mention-edges/all-mention-edges.txt 
+
+# Run report in subshell starting in a different directory
+(cd ../../R/rmd; Rscript knit.R)

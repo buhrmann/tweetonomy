@@ -10,20 +10,18 @@ fnm_for_day_tweets = function(day) { paste0(data_dir, count_dir, day, ".txt") }
 
 # Loop over all days
 # --------------------------------------------------------------------------------
-all_day_counts = function() {
+all_day_counts = function(from="00000000", to="99999999", verbose=F) {
   day_files = file_path_sans_ext(list.files(paste0(data_dir, count_dir)))
   day_files = day_files[!is.na(as.numeric(day_files))]
+  day_files = day_files[(day_files >= from) & (day_files <= to)]
   
   freqs = data.frame()
   for (day in day_files) {
-    print(sprintf("Processing day %s", day))
-    flush.console()
+    if (verbose) print(sprintf("Processing day %s", day));flush.console()
     if(file.info(fnm_for_day_tweets(day))$size == 0) {
-      print("Skipping empty file")
-      flush.console()
+      if (verbose) print("Skipping empty file"); flush.console()
       next
     }
-    
     freqs = rbind(freqs, day_count(day))
   }
   freqs
@@ -57,21 +55,3 @@ plot_tweet_freq = function(freqs, points=F) {
   }
   p
 }
-
-
-# --------------------------------------------------------------------------------
-# Plot all by hour
-freqs = all_day_counts()
-plot_tweet_freq(freqs)
-
-# Aggregate by day
-freqs %>%
-  group_by(datetime=as.Date(datetime)) %>%
-  summarize(freq = sum(freq)) %>%
-  plot_tweet_freq(points=T) + xlab("Daily")
-
-freqs %>%
-  filter(datetime >= "2015-10-01" & datetime <= "2015-10-07") %>%
-  plot_tweet_freq(points=T) + xlab("Hourly")
-
-freqs

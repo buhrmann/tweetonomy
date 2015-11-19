@@ -9,6 +9,9 @@ library(RColorBrewer)
 library(stringi)
 library(reldist)
 
+# --------------------------------------------------------------------------------
+# Basic helpers
+# --------------------------------------------------------------------------------
 list_to_df = function(l){
   ldf = lapply(l, function(x) data.frame(x))
   df = data.frame(ldf)
@@ -44,9 +47,12 @@ weight_dist = function(graph) {
 }
 
 basic_stats = function(g) {
+  ne = ecount(g)
+  total_weight = sum(E(g)$weight)
   data.frame("vertex_count" = vcount(g),
-             "edge_count" = ecount(g),
-             "tweets" = sum(E(g)$weight),
+             "edge_count" = ne,
+             "tweets" = total_weight,
+             "avg_weight" = total_weight / ne,
              "max_comp_size" = max(components(g)$csize),
              "max_coreness" = max(coreness(g)))
 }
@@ -431,14 +437,16 @@ party_colors$pp = "#02B3F4"
 party_colors$iu = "#C30202"
 party_colors$ciudadanos = "#FF800E"
 party_colors$catalunya = "#d3d323"
-party_colors$erc = "FFC302"
-party_colors$ciu = "FFC302"
+party_colors$erc = "#FFC302"
+party_colors$ciu = "#FFC302"
 party_colors$psoe = "#FF0202"
 party_colors$upyd = "#F9028A"
 party_colors$vox = "#6BBD1F"
 party_colors$unknown = "#cccccc"
 party_colors$prensa = "#666666"
 party_colors$prensa_ = "#666666"
+party_colors$animalistas = "#666666"
+party_colors$izquierda = "#ff0000"
 
 
 # Checks if members of affiliations list are all inside grp
@@ -525,7 +533,7 @@ total_weight_between = function(graph, from, to, grp_by="aff", scale=T) {
   edges = edges_between_grps(graph, from, to, grp_by)
   W = sum(edges$weight)
   if (scale) {
-    from_grp = get_group(g, from, grp_by)
+    from_grp = get_group(graph, from, grp_by)
     all_out = E(graph)[from(from_grp)]
     W = W / sum(all_out$weight)
   }
@@ -534,7 +542,7 @@ total_weight_between = function(graph, from, to, grp_by="aff", scale=T) {
 
 
 # Calculates the sum of weights for connections between all different groups
-interaction_matrix = function(graph, grp_by="aff", scale=T) {
+interaction_matrix = function(graph, grp_by="aff", scale=T, verbose=F) {
   grps = names(group_sizes(graph, grp_by=grp_by))
   num_grps = length(grps)
   df = data.frame(matrix(nrow=num_grps, ncol=num_grps))
@@ -543,7 +551,7 @@ interaction_matrix = function(graph, grp_by="aff", scale=T) {
   i = 0
   for (r in rownames(df)) {
     for (c in colnames(df)) {
-      print(sprintf("Calculating interaction %i of %i.", i+1, num_grps^2))
+      if (verbose) print(sprintf("Calculating interaction %i of %i.", i+1, num_grps^2)); flush.console()
       df[r, c] = total_weight_between(graph, r, c, grp_by, scale)
       i = i + 1
     }

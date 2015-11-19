@@ -3,18 +3,20 @@ library(tools)
 library(utils)
 
 # Working directory
-source('utils.R')
 source('fileutils.R')
+source('graphutils.R')
 source('plotutils.R')
 source('mediautils.R')
-
-# Define paths
 
 
 # Pretty print an integer with thousands separator
 # ------------------------------------------------------------------------------------------
 pp_int = function(i) {
   formatC(i, big.mark=".", format="f", drop0trailing=T)
+}
+
+pprint_date = function(d) {
+  format(d, format="%d-%m-%Y")
 }
 
 
@@ -28,20 +30,20 @@ preprocess_graph = function(g, min_w=1) {
     filter_isolates()  
 }
   
-process_ggraph = function(mode="R") {
-  G = global_graph(cachename_for_graph(mode), community_algo) 
+process_ggraph = function(layer="C", version="A") {
+  G = global_graph(layer, version, community_algo) 
   preprocess_graph(G)
 }
 
 
 # Get day graph with affiliations from global graph
 # --------------------------------------------------------------------
-day_graph = function(day_str, mode, com_algo, G=NULL) {
+day_graph = function(day_str, layer, version, com_algo, G=NULL) {
   if (is.null(G)) {
-    G = process_ggraph(mode=mode)
+    G = process_ggraph(layer=layer, version=version)
   }
   
-  if (mode == "R") {
+  if (layer == "R") {
     g = load_graph(paste0(data_dir, "retweet-edges/", day_str, ".txt"))
   } else {
     g = load_graph(paste0(data_dir, "mention-edges/", day_str, ".txt"))
@@ -72,12 +74,12 @@ day_graph = function(day_str, mode, com_algo, G=NULL) {
 # latter may also include passive retweeted-only users, which will be
 # absent in the returned list!
 # --------------------------------------------------------------------
-day_users_with_com = function(day_str, mode, G=NULL) {
+day_users_with_com = function(day_str, layer, version, G=NULL) {
   if (is.null(G)) {
-    G = process_ggraph(mode=mode)
+    G = process_ggraph(layer=layer, version=version)
   }
   
-  users = day_users(day_str, mode)
+  users = day_users(day_str, layer)
   if (nrow(users) > 0) {
     users_in_ggraph = which(users$name %in% V(G)$name)
     users = users[users_in_ggraph, ]

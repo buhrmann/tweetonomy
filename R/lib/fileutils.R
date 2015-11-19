@@ -1,17 +1,23 @@
 library(igraph)
-source('utils.R')
+source('graphutils.R')
 
 root_dir = "~/Code/tweetonomy/"
-setwd(paste0(root_dir, "R"))
 
 tblnm = "parties"
 data_dir = paste0(root_dir, "data/", tblnm, "/")
-layers = c(R="retweet", M="mention", C="combined")
-versions = c(C="catalunya", G="general", A="all")
+layers = list(R="retweet", M="mention", C="combined")
+versions = list(C="catalunya", G="general", A="all")
 periods = list(C=list(from="00000000", to="20151007"),
                G=list(from="20151001", to="99999999"),
                A=list(from="00000000", to="99999999"))
 
+
+# Filename date format to date
+# Filesnames have format YYYYmmdd
+# --------------------------------------------------------------------
+filename_to_date = function(filename) {
+  strptime(filename, format="%Y%m%d")
+}
 
 # --------------------------------------------------------------------
 cachename_for_graph = function(layer, version) {
@@ -36,8 +42,8 @@ get_cached = function(varnm, fnm) {
 
 # Fetches edge-list for given day
 # --------------------------------------------------------------------
-edge_list_day = function(day_str, mode) {   
-  if (mode == "R") {
+edge_list_day = function(day_str, layer) {   
+  if (layer == "R") {
     fnm = paste0(data_dir, "retweet-edges/", day_str, ".txt")
   } else {
     fnm = paste0(data_dir, "mention-edges/", day_str, ".txt")      
@@ -58,8 +64,8 @@ quick_edge_list = function(fnm) {
 
 # All day edge lists combined
 # --------------------------------------------------------------------
-combined_edge_list = function(mode, from="00000000", to="99999999") {
-  fld = ifelse(mode=="R", "retweet-edges/", "mention-edges/")
+combined_edge_list = function(layer, from="00000000", to="99999999") {
+  fld = ifelse(layer=="R", "retweet-edges/", "mention-edges/")
   day_files = file_path_sans_ext(list.files(paste0(data_dir, fld)))
   day_files = day_files[!is.na(as.numeric(day_files))]
   day_files = day_files[(day_files >= from) & (day_files <= to)]
@@ -70,7 +76,10 @@ combined_edge_list = function(mode, from="00000000", to="99999999") {
     quick_edge_list(day)
   }))
   names(edge_list_df) = c("from", "to", "weight")
-  edge_list_df
+  # Combine edges between identical pairs of accounts (from different days) by summing up their weights
+  edge_list_df %>% 
+    group_by(from, to) %>% 
+    summarize(weight=sum(weight))
 }
 
 
@@ -85,7 +94,7 @@ load_graph = function(fnm) {
 
 # Get or create global graph
 # --------------------------------------------------------------------
-cache_global_graph = function(layer="R", version="C", com_algo, topn_coms=10) {
+cache_global_graph = function(layer="R", version="C", com_algo, topn_coms=10, verbose=F) {
   from = periods[[version]]$from
   to = periods[[version]]$to
   print(sprintf("Generating global graph file for layer %s and version %s", layers[layer], versions[version]))
@@ -114,12 +123,16 @@ cache_global_graph = function(layer="R", version="C", com_algo, topn_coms=10) {
 
 
 # --------------------------------------------------------------------
-global_graph = function(layer, version, com_algo, topn_coms=10) {
-  G = get_cached("G", cachename_for_graph(layer, version))
-  if (is.null(G)) {
-    G = cache_global_graph(layer, version, com_algo, topn_coms)
+global_graph = function(layer, version, com_algo, topn_coms=10, recache=F, verbose=F) {
+  if (recache) {
+    return(cache_global_graph(layer, version, com_algo, topn_coms, verbose))
+  } else {
+    G = get_cached("G", cachename_for_graph(layer, version))
+    if (is.null(G)) {
+      G = cache_global_graph(layer, version, com_algo, topn_coms, verbose)
+    }
+    G
   }
-  G
 }
 
 
@@ -152,11 +165,9 @@ hashtags = function(fnm) {
 
 # Read and return users for a certain day and their tweet count
 # --------------------------------------------------------------------
-day_users = function(day_str, mode) { 
-  if (mode == "R") {
-    edges = edge_list_day(day_str, "R")
-  } else if (mode == "M") {
-    edges = edge_list_day(day_str, "M")
+day_users = function(day_str, layer) { 
+  if (layer %in% c("R", "M")) {
+    edges = edge_list_day(day_str, layer)
   } else {
     r_edges = edge_list_day(day_str, "R")
     m_edges = edge_list_day(day_str, "M")

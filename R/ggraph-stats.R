@@ -159,4 +159,4 @@ ecount(pg)
 
 vcols = as.character(cols[V(pg)$aff])
 V(pg)$color = vcols
-g_plot(pg, layout=with_fr(), colorAttr=NULL)
+g_plot(pg, layout=with_fr(niter=200), colorAttr=NULL)

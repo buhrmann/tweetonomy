@@ -1,7 +1,7 @@
 
 Social Network Autonomy:
  ☐ Combined graph layers duplicate tweets as some will be both a retweet and a mention !!!
- ✔ Finish refactoring of hashtag_freq functions to use day_users instead of more costly, but unnecessary (confirm!) day_graph! @done (15-10-23 19:00)
+ ☐ Check images in long email thread are all represented in report.
  ☐ !!!Check whether to use strength() instead of degree everywhere (i.e. #tweets not #different users retweeted)!!!
  ☐ Make all mode/layer dependent functions also apply to "both" kinds.
  ☐ Cache R, M and B global networks separately!
@@ -25,6 +25,8 @@ Social Network Autonomy:
 
 ＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
 Archive:
+ ✔ Add report creation to export-all script! @done (15-11-06 15:05) @project(Social Network Autonomy)
+ ✔ Finish refactoring of hashtag_freq functions to use day_users instead of more costly, but unnecessary (confirm!) day_graph! @done (15-10-23 19:00) @project(Social Network Autonomy)
  ✔ Make small_graph.R a file analyzing day network @done (15-10-23 18:10) @project(Social Network Autonomy)
  ✔ Reconsider tracked users and keywords @done (15-10-23 18:10) @project(Social Network Autonomy)
  ✔ Improve community detection by running algo several times and taking majority vote or similar? @done (15-10-23 18:10) @project(Social Network Autonomy)

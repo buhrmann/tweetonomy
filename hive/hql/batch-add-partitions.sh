@@ -1,10 +1,20 @@
 # Set starting date folder
-startdir="00000000"
 if [ "$#" = 2 ]; then
     startdir=$2
     echo "Batch adding partitions from $startdir onwards!"
+else
+    # Find last already existing partition
+    partStr=`hive -e 'SHOW PARTITIONS parties;'`
+    partArr=( $partStr )
+    numParts=${#partArr[@]}
+    lastPart=${partArr[$numParts-1]}
+    # Partitions are printed as "coldate=yyyymmdd"
+    # Extract date part only:
+    startdir=`echo $lastPart | tr -dc '[0-9]'` 
 fi
 
+# Drop starting partition
+hive -e "ALTER TABLE parties DROP IF EXISTS PARTITION (coldate=$startdir);"
 
 for path in `hdfs dfs -ls /user/flume/$1 | awk '{print $8}'`
 do
