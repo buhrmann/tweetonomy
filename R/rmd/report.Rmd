@@ -366,4 +366,11 @@ dotline_plot(named_to_df(media), "name", "val", xlab_s=1.25, labels=med_aff$aff)
   scale_color_manual(values=med_col) + expand_limits(y=c(0, max(media)*1.1))
 ```
 
-However, this doesn't give us the whole picture. Although a media outlet may be mostly associated with one particular community (that retweets its news the most, for example), other communities may also interact with it.
+However, this doesn't give us the whole picture. Although a media outlet may be mostly associated with one particular community (that retweets its news the most, for example), other communities may also interact with it. In the following figure, we therefore plot for each community the proportion of their tweets that are retweets from a given media outlet.
+
+```{r media_out_2}
+grp_med = grp_media_affiliations(G[[layer]], media, "aff")
+dotline_arrange_df(grp_med)
+```
+
+An interesting observation is that in some cases, particular communities focus their tweet activity mostly on one or a few specific media outlets, while others divide their attention more equally. We can try to capture this quantitatively too.

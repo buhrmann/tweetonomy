@@ -274,7 +274,7 @@ dotline_arrange_df = function(df, ylab_str="", title="", ylim=c(0, NA)) {
       ggtitle(colnames(df)[i]) +
       ylab(ylab_str) + scale_y_continuous(limits=ylim)
   })
-  do.call(grid.arrange, c(plts, main=title))
+  do.call(grid.arrange, plts)
 }
 
 
