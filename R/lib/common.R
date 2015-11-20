@@ -19,7 +19,6 @@ pprint_date = function(d) {
   format(d, format="%d-%m-%Y")
 }
 
-
 # Get a "clean" global graph
 # ------------------------------------------------------------------------------------------
 preprocess_graph = function(g, min_w=1) {

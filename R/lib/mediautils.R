@@ -9,7 +9,7 @@ media_names = c("el_pais", "publico_es", "europapress", "voz_populi",
                 "eljueves", "la_informacion")
 
 # Degree of media
-get_media = function(graph) {
+get_media = function(g) {
   m = media_names[which(media_names %in% V(g)$name)]
   sort(sapply(m, function(x) degree(g, x), USE.NAMES=F), decr=T)
 }

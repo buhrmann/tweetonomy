@@ -209,7 +209,7 @@ named_to_df = function(named_list, decr=T, alt_names=c("name", "val")) {
 }
 
 # dotplot (barplot alternative)
-dotline_plot = function(df, xstr, ystr, log_scale=NULL, xlab_ang=45, xlab_s=1.0) {
+dotline_plot = function(df, xstr, ystr, log_scale=NULL, xlab_ang=45, xlab_s=1.0, labels=NULL) {
   if (xlab_ang == 45) {
     hj = 1; vj=1;
   } else if (xlab_ang == 90) {
@@ -229,6 +229,11 @@ dotline_plot = function(df, xstr, ystr, log_scale=NULL, xlab_ang=45, xlab_s=1.0)
           panel.grid.major.x = element_blank(),
           panel.grid.minor.y = element_blank()) + 
     xlab("")
+  
+  if (!is.null(labels)) {
+    p = p + geom_text(data=cbind(df, label=labels), aes_string(x=xstr, y=ystr, label="label"), 
+                      vjust=-1, angle=xlab_ang)
+  }
   
   if (!is.null(log_scale)) {
     if (grepl("x", log_scale))
