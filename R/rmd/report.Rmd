@@ -374,3 +374,21 @@ dotline_arrange_df(grp_med)
 ```
 
 An interesting observation is that in some cases, particular communities focus their tweet activity mostly on one or a few specific media outlets, while others divide their attention more equally. We can try to capture this quantitatively too.
+
+```{r media_out_3}
+ginis = colwise_boot_errors(gini, grp_med, rep=1000)
+ggplot(ginis, aes(x=name, y=v)) + 
+  geom_point(size=3) +
+  geom_errorbar(aes(ymin=v_min, ymax=v_max), width=0.2) +
+  xlab("") + ylab("gini") + ggtitle("Inequality of media affiliation") +
+  theme_minimal() +
+  theme(axis.text.x=element_text(size=rel(1.25), angle=45, hjust=1, vjust=1), 
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.y = element_blank())
+```
+
+## Topic analysis
+Only a certain fraction of tweets actually contain hashtags, which reduces the amount of content available for studying e.g. the spread of certain topics between communities. In order to make better use use the available information, we can automatically extract the topic or keywords from tweet content...
+
+## Sentiment analysis
+While the diversity of media consumed is an interesting characteristic of online communities, it would also be interesting to know whether a community consumes certain media because they identify with its content, or because they strongly object to it. In order to identify the overall sentiment of tweets, we can train classifiers on text features (e.g. tf-idf), using tweets previously identified as positive, negative or neutral by experts...
