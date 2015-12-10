@@ -8,7 +8,7 @@ library(stringi)
 
 
 
-day = "20150804"
+day = "20150910"
 tweets_fnm = paste0(data_dir, "tweets/tweets-", day,  ".tsv")
 
 lexicon = "isol"

@@ -1,8 +1,10 @@
 # --------------------------------------------------------------------------------
-# rm(list=ls())
+# rm(list=ls(all=T))
+# gc()
 # --------------------------------------------------------------------------------
-source('common.R')
-source('textutils.R')
+source('lib/common.R', chdir=T)
+source('lib/textutils.R')
+source('lib/mlutils.R')
 
 library(Matrix)
 library(e1071)
@@ -18,77 +20,6 @@ library(doParallel)
 #cl = makeCluster(detectCores())
 
 
-downsample_sparse = function(x, y) { 
-  if (!is.factor(y)) {
-    warning("Down-sampling requires a factor variable as the response. The original data was returned.")
-    return(list(x = x, y = y))
-  }
-  
-  # How many samples in each class?
-  min_class_size = min(table(y))
-  
-  # Attach labels as last column to keep track of correct class when sampling
-  # Converts factor levels to numeric, so need to convert back later...
-  x = cbind2(x, as.numeric(y))
-  
-  # Loop over levels l of y, extract indices of corresponding rows of x as rows_l and resample 
-  # down to necessary size from these rows. Add sampled indices to vector idx.
-  idx = c()
-  for (l in unique(as.numeric(y))) {
-    rows_l = which(x[, ncol(x)] == l)
-    if (length(rows_l) > min_class_size) {      
-      idx_l = sample(rows_l, size=min_class_size, replace=FALSE) # Get min_class_size rows
-      idx = c(idx, idx_l)
-    } else {
-      idx = c(idx, rows_l)
-    }
-  }
-  # Now get data from downsampled indices
-  x = x[idx, ]
-  y_new = x[, ncol(x)] # Extract new labels vector
-  y_new = factor(y_new, labels=levels(y)) # Convert back to factor
-  x = x[, -ncol(x)] # Remove class labels from x again  
-  list(x=x, y=y_new) 
-}
-
-
-upsample_sparse = function(x, y, shuffle=T) {  
-  if (!is.factor(y)) {
-    warning("Up-sampling requires a factor variable as the response. The original data was returned.")
-    return(list(x = x, y = y))
-  }
-  
-  # How many samples in each class?
-  max_class_size = max(table(y))
-  
-  # Attach labels as last column to keep track of correct class when duplicating
-  # Converts factor levels to numeric, so need to convert back later...
-  x = cbind2(x, as.numeric(y))
-
-  # Loop over levels l of y, extract all corresponding rows of x as x_l and resample 
-  # up to necessary size from these rows. Add new rows to matrix.
-  for (l in unique(as.numeric(y))) {
-    rows_l = x[, ncol(x)] == l
-    x_l = x[rows_l, ]
-    n = nrow(x_l)
-    if (n < max_class_size) {
-      ind = sample(1:n, size=max_class_size-n, replace=TRUE) # Get extra rows
-      x = rbind2(x, x_l[ind, ])
-    }
-  }
-  
-  if (shuffle) {
-    rid = sample(nrow(x))
-    x = x[rid,]
-  }
-  
-  y_new = x[, ncol(x)] # Extract new labels vector
-  y_new = factor(y_new, labels=levels(y))
-  x = x[, -ncol(x)] # Remove class labels from x again  
-  list(x=x, y=y_new)
-}
-
-
 # Required Files
 # --------------------------------------------------------------------------------
 tweets_15_tr = paste0(data_dir, "sentiment/TASS/general-tweets-train-tagged.xml")
@@ -101,84 +32,158 @@ stops2_fnm = paste0(data_dir, "sentiment/SEPLN-TASS15/DATA/stop-words/stop-words
 stops = stop_words(c(stops1_fnm, stops2_fnm), remove_accents=T, include_tm_lang="es")
 
 # TODO: ADD other words not to be removed, like bueno, malo, mucho, bien etc... !!!!
-exclude_stops = c("podemos", "bien", "bastante", "buen", "buena", "buenas", "bueno", "buenos", "grandes",
-                  "igual", "mas", "mayor", "mejor", "menos", "mucha", "muchas", "mucho", "muchos", "muy",
-                  "nada", "nadie", "ni", "ningun", "ninguna", "ningunas", "ninguno", "ningunos", "no",
-                  "nunca", "pasada", "sin", "siempre", "sola", "solamente", "solas", "solo", "solos",
-                  "tampoco", "tan", "tanto", "toda", "todas", "todavia", "todo", "todos", "total",
-                  "ultima", "ultimas", "ultimo", "ultimos", "valor", "verdad", "verdadera", "verdadero")
+
 include_stops = c("RT", "RT:")
 stops = stops[-which(stops %in% exclude_stops)]
 stops = sort(union(stops, include_stops))
 
+
 # Load tweets and preprocess
 # --------------------------------------------------------------------------------
-df = load_tass_tweets(tweets_15_tr)
+remove_non_sents = TRUE # Remove tweets without sentiment?
+remove_non_es = TRUE    # Remove tweets not in Spanish?
+remove_neu_sents = TRUE # Remove tweets with neutral sentiment (leaving only POS and NEG)?
+
+merge_tweet_sources = T
+merge_train_only = T   # Adds diff. sources for training, but keeps original validation set untouched
+equalize_source_sizes = F # WARNING: Throws away a lot of data !
+validation_prop = 0.2
+
+df = load_tass_tweets(c(tweets_15_tr, tweets_15_te), remove_non_sents, remove_non_es, remove_neu_sents, shuffle=T)
+df_val = load_tass_tweets(tweets_13_te, remove_non_sents, remove_non_es, remove_neu_sents, shuffle=T)
+
+# Otherwise one source may dominate another
+if(equalize_source_sizes) {
+  # Only take as much samples from bigger data source as in smaller source
+  df = df[sample(nrow(df_val)), ]
+}
+
+# To get more variety in kinds of tweets
+if (merge_tweet_sources) {
+  df = rbind(df, df_val)
+  df = df[sample(nrow(df)), ] # shuffle just in case
+  if(!merge_train_only) {
+    train_index = as.numeric(createDataPartition(df$sent_bin, p=(1-validation_prop), list=F, times=1))
+    df_val = df[-train_index,]
+    df = df[train_index,]
+  }
+}
+
+# Down-sample training date only for balanced classes, needs shuffle afterwards !!!
+prop.table(table(df$sent_bin))
+df = downSample(x=df[, -ncol(df)], y=df$sent_bin, yname="sent_bin")
+df = df[sample(nrow(df)), ] # shuffle
+prop.table(table(df$sent_bin))
 N = nrow(df)
+N_val = nrow(df_val)
 N
 
-# Convert emoticons to unique non-puntuated tokens
-df$text[which(grepl(":)", df$text))]
-df$text = substitute_emoticons(df$text)
-df$text[which(grepl("emopolpos", df$text))]
-df$text[which(grepl("emopolneg", df$text))]
+sapply(emo_pos_str, function(e) sum(grepl(e, df$text)))
+sapply(emo_neg_str, function(e) sum(grepl(e, df$text)))
 
-# Remove retweet tokens
-df$text = remove_twitter_entities(df$text)
+common_preprocess = function(text) {
+  text = substitute_emoticons(text)
+  text = remove_twitter_entities(text)
+  text = remove_twitter_urls(text)
+  text = remove_repeated_char(text, 3)
+  #text = remove_accents(text)
+}
 
-# Remove characters repeated more than 3 times
-# But keep at least 3 to potentially detect exaggerations !
-df$text = remove_repeated_char(df$text, 3)
+df$text = common_preprocess(df$text)
+df_val$text = common_preprocess(df_val$text)
 
-# Create corpus and clean up
+sum(grepl("emopolpos", df$text))
+sum(grepl("emopolneg", df$text))
+
+
+# Configuration
 # --------------------------------------------------------------------------------
-corp = preprocessed_corpus(df$text, stops=stops, stemlang=NULL, remove_accents=T)
+remove_sparse_prop = 0.999  # Remove terms absent (count=0) in this proportion of documents
 
-# 3. mentions
+minDocFreq = 1
+maxDocFreq = Inf
+stopwords = TRUE # stops
+ngrams = 1
 
-# 4. Repeated letters (exaggerations: aaaaahhh!)
+tm_control = list(
+  bound = list(local=c(minDocFreq, maxDocFreq)),
+  language = "es",
+  tolower = TRUE,  
+  removeNumbers = FALSE,
+  removePunctuation = TRUE,
+  stopwords = stopwords,
+  stripWhiteSpace = TRUE,
+  wordLengths = c(2, Inf),
+  weighting = weightTf,
+  stemming = TRUE,
+  dictionary = NULL,
+  verbose = T
+)
+
+if (ngrams > 1) {
+  tm_control$tokenize = ngrams_tokenizer(ngrams, package="RWeka")  
+} else {
+  tm_control$tokenize = "words"
+}
 
 
-# Create term-document matrix
+# Create DTM
 # --------------------------------------------------------------------------------
-tokenizer = ngrams_tokenizer(2, package="NLP")
-tf_ctrl = list(tokenize = tokenizer, 
-            weighting = function(x) weightTfIdf(x, normalize=T))
+# Test-tokenize, remove docs that would be empty as result, and tokenize again for real
+#   empty_docs = which_empty_docs(corp, tf_ctrl)
+#   if (length(empty_docs) > 0) {
+#     labels = labels[-empty_docs]
+#     corp = corp[-empty_docs]
+#   }
 
-# Tokenize, remove docs empty as result, and tokenize again
-empty_docs = which_empty_docs(corp, tf_ctrl)
-corp = corp[-empty_docs]
-tdm = TermDocumentMatrix(corp, control=tf_ctrl)
+corp = Corpus(VectorSource(df$text), readerControl=list(language=tm_control$language))
+corp_val = Corpus(VectorSource(df_val$text), readerControl=list(language=tm_control$language))
+labels = factor(df$sent_bin)
+labels_val = factor(df_val$sent_bin)
+dtm_full = DocumentTermMatrix(corp, control=tm_control)
+if (remove_sparse_prop < 1) {
+  dtm_sm = removeSparseTerms(dtm_full, remove_sparse_prop)
+  dtm = dtm_sm
+} else {
+  dtm = dtm_full
+}
+dtm = dtm_to_csparse(dtm)
+dtm_val = dtm_to_csparse(DocumentTermMatrix(corp_val, control=tm_control))
+dtm_val = dtm_filter_terms(dtm_val, dtm)
 
 # check result
-tscore = apply(tdm, 1, sum)  # for each term, the total tf-idf score summed over all documents
-head(sort(tscore, decr=T), 25)
+head(sort(slam::col_sums(dtm[labels=="Neg",]), decr=T), 25)
+head(sort(slam::col_sums(dtm[labels=="Pos",]), decr=T), 25)
+head(sort(slam::col_sums(dtm_val[labels_val=="Pos",]), decr=T), 25)
 
-idx = which(dimnames(tdm)$Terms == "podemos")
+idx = which(dimnames(tdm)$Terms == "buenas noches")
 inspect(tdm[idx+(-2:2),1:10])
 
+# Any empty docs ?
+row_totals = slam::row_sums(dtm)
+empty_rows = dtm[row_totals == 0, ]@Dimnames$Docs
+
 # term frequencies
-term_freq = slam::row_sums(tdm)
+term_freq = slam::col_sums(dtm)
+term_freq_val = slam::col_sums(dtm_val)
 head(sort(term_freq, decr=T), 25)
-head(sort(term_freq, decr=F), 25)
+head(sort(term_freq_val, decr=T), 25)
+#head(sort(term_freq, decr=F), 25)
 plot(as.numeric(sort(term_freq, decr=T)))
 hist(term_freq)
 plot(ecdf(term_freq))
+# Check potential tf cutoff point for removing low scoring ngrams, i.e. sparse terms
 median(term_freq)
 which(term_freq == median(term_freq))
 qs = quantile(term_freq, probs=c(0.25, 0.5, 0.75))
-sum(term_freq > qs[1]) / length(term_freq) # Proportion of terms greater than quantile
+sum(term_freq > qs[2]) / length(term_freq) # Proportion of terms greater than quantile
 
-dtm = as.DocumentTermMatrix(tdm, control=tf_ctrl)
 
-# Remove sparse terms
-freq_terms_dict = findFreqTerms(dtm, lowfreq=quantile(term_freq, probs=0.25))
-100 * length(freq_terms_dict) / nrow(tdm) # Percentage of original terms
-tf_ctrl2 = tf_ctrl
-tf_ctrl2$dictionary = freq_terms_dict
-dtm2 = DocumentTermMatrix(corp, control=tf_ctrl2)
-dtm2 = as.matrix(dtm2)
-N = dim(dtm)[1]
+# Caching
+# --------------------------------------------------------------------------------
+cache_fnm = "../data/parties/r-cache/sentiment_data.Rdata"
+save(df, empty_docs, corp, tdm, dtm, dtm2, file=cache_fnm)
+load(cache_fnm)
 
 # Inspect topics (only works if weighting is tf, not tf-idf)
 # --------------------------------------------------------------------------------
@@ -187,104 +192,45 @@ term = terms(lda, 6)
 term
 topic = topics(lda, 1)
 
-
-# Train classifiers manually
+# Train classifiers
 # --------------------------------------------------------------------------------
-sm = Matrix(as.matrix(dtm), sparse=T)
-dm = as.matrix(dtm)
-labels = factor(df$sent_bin[-empty_docs])
+train_prop = 0.8
+part_random = T
 
-# Equally distributed classes? No!!!
-table(labels)
-
-#weights = 1000 * 1/table(labels);
-weights = list("-1"=1, "0"=1000, "1"=1)
-weights = list("-1"=1, "0"=1, "1"=1)
-
-# Create training and test set
-x_tr = dm[1:N_tr,]
-y_tr = labels[1:N_tr]
-x_te = dm[(N_tr+1):N,]
-y_te = labels[(N_tr+1):N]
-
-
-ctrl = trainControl(#method="repeatedcv", number=5, repeats=1,
-                    #method="cv", number=5, repeats=1,
-                    method="none",
-                    classProbs=TRUE, summaryFunction = multiClassSummary,
-                    sampling="up", verboseIter=T, allowParallel=T)
-
-mod = train(x_tr, y_tr, method="glmnet", family="multinomial",
-            metric="Accuracy", trControl=ctrl)
-
-# SVM
-mod_svm = svm(sm[1:N_tr,], labels[1:N_tr], kernel="linear", cost=1, class.weights=weights)
-pred_svm = predict(mod_svm, sm[(N_tr+1):N,])
-table(pred_svm, labels[(N_tr+1):N])
-
-# Naive Bayes
-options(mc.cores=6)
-mod_nb = naiveBayes(dm[1:N_tr,], labels[1:N_tr])
-pred_nb = predict(mod_nb, data.frame(dm[(N_tr+1):N,]), type="class")
-table(pred_nb, labels[(N_tr+1):N])
-
-# logistic regression
-# todo: only upsample training data, i.e. split test data off before...
-sample_balance = "up"
-cl = makeCluster(5)
-registerDoParallel(cl)
-trainIndex = as.numeric(createDataPartition(labels, p=0.5, list=F, times=1))
-x_tr = sm[trainIndex, ]
-y_tr = labels[trainIndex]
-x_te = sm[-trainIndex, ]
-y_te = labels[-trainIndex]
-table(y_tr)
-prop.table(table(y_tr))
-
-if (sample_balance %in% c("up", "down")) {
-  if (sample_balance == "up") {
-    smpl = upsample_sparse(x_tr, y_tr, shuffle=T)
-  }
-  else if (sample_balance == "down") {
-    smpl = downsample_sparse(x_tr, y_tr)
-  }
-  x_tr = smpl$x
-  y_tr = smpl$y
+if (part_random) {
+  trainIndex = as.numeric(createDataPartition(labels, p=train_prop, list=F, times=1))
+} else {
+  trainIndex = 1:(train_prop * length(labels))
 }
 
-prop.table(table(labels))
-table(y_tr)
-prop.table(table(y_tr))
-prop.table(table(y_te))
+x_tr = dtm[trainIndex, ]
+y_tr = labels[trainIndex]
+x_te = dtm[-trainIndex, ]
+y_te = labels[-trainIndex]
 
-#mod_glm = glmnet(x_tr, y_tr, family="multinomial")
-#pred_glm_p = predict(mod_glm, newx=x_te, type="response", s=opt_lambda)
+model_svm = svm(x=x_tr, y=y_tr, probability=TRUE, scale=T, type="C-classification", cost=10, gamma=1/ncol(x_tr), cross=0, kernel="radial")
+svm_pred = predict_perf_bin(model_svm, x_te, y_te, probability=T)
+svm_pred = predict_perf_bin(model_svm, dtm_val, labels_val, probability=T)
 
-# alpha=0: ridge, alpha=1: lasso
-glm_cv = cv.glmnet(x_tr, y_tr, family="multinomial", type.measure="deviance", nfolds=10, parallel=T, alpha=0.0)
-pred_glm_c = predict(glm_cv, newx=x_te, type="class", s=glm_cv$lambda.min)
-table(pred_glm_c, y_te)
+# Tune svm with e1071 package
+# best cost >= 1000, gamma very small?
+# Default gamma = 1/#features = 1/ncol(tm_dtm) = 1.78e-05
+tune_control = tune.control(nrepeat=1, sampling="cross", cross=10)
+tuned_svm = tune("svm", tm_dtm, labels, kernel="radial", scale=T, probability=TRUE,
+                 ranges = list(cost=c(100), gamma=c(2e-10, 2e-5, 2e-1)),
+                 tunecontrol=tune_control)
 
-predf = data.frame(obs=y_te, pred=pred_glm_c[,1])
-multiClassSummary(predf, lev=levels(labels))
-confusionMatrix(predf$pred, predf$obs)
+svmt_pred = predict_perf_bin(tuned_svm, x_te, y_te, probability=T)
+svmt_pred = predict_perf_bin(tuned_svm, dtm_val, labels_val, probability=T)
 
+# Logistic regression with glmnet
+cl = makeCluster(4)
+registerDoParallel(cl)
+#model_glm_cv = cv.glmnet(x_tr, y_tr, family="binomial", alpha=0.5, type.measure="class", nfolds=10, parallel=T)
+model_glm_cv = cv.glmnet(dtm, labels, family="binomial", alpha=0.5, type.measure="class", nfolds=10, parallel=T)
 stopCluster(cl)
 
-# Train classifiers with RTextTools
+glm_pred = predict_perf_bin(model_glm_cv, x_te, y_te, type="class", s=model_glm_cv$lambda.min)
+glm_pred = predict_perf_bin(model_glm_cv, dtm_val, labels_val, type="class", s=model_glm_cv$lambda.min)
+
 # --------------------------------------------------------------------------------
-# Naive Bayesian on tf-idf
-#dtm = create_matrix(tsdf$c, language="spanish", removeStopwords=T, removeNumbers=T)#, stemWords=T)
-container = create_container(dtm, df$sent_bin[-empty_docs], trainSize=1:5000, testSize=5001:N, virgin=F)
-svm = train_model(container, "SVM")
-svm_cl = classify_model(container, svm)
-
-table(svm_cl$SVM_LABEL, tsdf$sb[5001:N])
-
-analy = create_analytics(container, svm_cl)
-summary(analy)
-analy@label_summary
-analy@algorithm_summary
-analy@ensemble_summary
-analy@document_summary
-

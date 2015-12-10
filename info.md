@@ -10,6 +10,24 @@ Similar to above, but implements logging as statuses come in, and allows for key
 https://github.com/cloudera/cdh-twitter-example/blob/master/flume-sources/src/main/java/com/cloudera/flume/source/TwitterSource.java
 Jar file is flume-sources-1.0.SNAPSHOT.jar
 
+## Jars
+Both the twitter-flume source, as well as json serde are now customized and build with maven from cloudera's source. Code is in cdh-... folder. For each jar there is a pom file. In this folder simply run "mvn package" to create the jar.
+
+- hive-env.sh specifies a folder to look for extra jars
+- hive-site.xml has property hive.aux.jars.path, which also specifies path to extra jars (one per jar file, not folder).
+
+Update: lastest json serde is from rcongiu: 
+
+- http://www.congiu.net/hive-json-serde/1.3.6-SNAPSHOT/hdp23/
+- The source here: https://github.com/rcongiu/Hive-JSON-Serde. 
+
+If in the future it also doesn't fit all purposes still others are here:
+
+- https://github.com/sheetaldolas/Hive-JSON-Serde/tree/master
+- https://github.com/apache/hive/blob/master/hcatalog/core/src/main/java/org/apache/hive/hcatalog/data/JsonSerDe.java (binary already in hive/hcatalog/...core.jar)
+
+Also see http://ottomata.org/tech/too-many-hive-json-serdes/ and http://grokbase.com/t/cloudera/cdh-user/13529zytq4/hive-jsonserde-question.
+
 ## Twitter API ##
 
 App: tweetonomy
@@ -25,6 +43,7 @@ This gets tweets into hadoop already. For Hive support:
 3. Create hive table schema (see my .hv file in hive/config/scripts). Make sure columns with names that are reserved keywords are in back quotes (e.g. `user`)
 4. Create table: hive -f path/to/schema.hql
 5. When starting a hive shell for querying, have to first ADD JAR, as in schema file!
+6. Actually, have added jar extra path in some config file, so no need to add in each hql script. Check where!!! 
 
 Network
 
@@ -58,6 +77,7 @@ Edges for:
     - http://www.t-cracia.info/#/clas/Pol%C3%ADticos
     - #27S
     - #20D, #20D2015, #Elecciones20D, (NOT #EleccionesGenerales2015. IN GUATEMALA!)
+    - #Ciudadanos, #PSOE #PartidoPopular, #Podemos, #IzquierdaUnida, #UPyD (Added 01/12)
     - PSOE: 
         -  @PSOE(50982086), 
         -  @sanchezcastejon(68740712, candidato, secretario general), 

@@ -1,4 +1,6 @@
-- hive-serdes-1.0-SNAPSHOT.jar contains json serde for hive
-- cloudera-json-serde.jar is same as above
+- flume-source-1.0-SNAPSHOT.jar contains cloudera twitter source for flume, compiled from cdh-twitter-example
+- hive-hcatalog-core-1.2.1 contains a copy of hive/hcatalog... serde
+- hive-serdes-1.0-SNAPSHOT.jar.BCK contains vanilla cloudera json serde
+- hive-serdes-1.0-SNAPSHOT.jar.CSTM contains modified cloudera json serde, compiled from cdh-twitter-example
+- json-serde-1.3.6-SNAPSHOT-jar-with-dependencies is the currently used serde, see info.md
 - twitterutil-1.0-SNAPSHOT.jar contains hive path filter which avoids processing .temp files in mapreduce.
-- flume-source-1.0-SNAPSHOT.jar contains a twitter source for flume

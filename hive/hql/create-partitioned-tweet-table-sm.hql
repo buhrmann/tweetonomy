@@ -1,4 +1,4 @@
-ADD JAR /usr/local/Cellar/hive-1.2.1/lib/cloudera-json-serde.jar;
+--ADD JAR /usr/local/Cellar/hive-1.2.1/lib/cloudera-json-serde.jar;
 
 DROP TABLE IF EXISTS ${hiveconf:tbl};
 CREATE EXTERNAL TABLE ${hiveconf:tbl} (
@@ -18,5 +18,6 @@ CREATE EXTERNAL TABLE ${hiveconf:tbl} (
   in_reply_to_user_id BIGINT
 ) 
 PARTITIONED BY (coldate INT)
-ROW FORMAT SERDE 'com.cloudera.hive.serde.JSONSerDe'
+--ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
+ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
 LOCATION '/user/flume/${hiveconf:tbl}';

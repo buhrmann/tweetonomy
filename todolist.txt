@@ -1,5 +1,16 @@
 
 Social Network Autonomy:
+ ☐ Finish sentiment analysis
+   ☐ Finish jump to text2vec tools
+     ☐ Account for jajaja, jejeje etc.
+     ☐ Add preprocessing options from train_tm
+   ☐ allow option and training of ternary sentiment
+   ☐ Compare with polarized vocabulary algo, also as validation when using mixed tweet corpus
+   ☐ Reduce #features (removeSparseTerms)
+   ☐ Test trained SVM on unseen data
+   ☐ Compare different classifiers (see RTextTools) on validation set and XVal (createMultifolds prior)
+ ☐ Automatically delete or overwrite last exported file
+ ☐ Aggregate community tweets per minute
  ☐ Combined graph layers duplicate tweets as some will be both a retweet and a mention !!!
  ☐ Check images in long email thread are all represented in report.
  ☐ !!!Check whether to use strength() instead of degree everywhere (i.e. #tweets not #different users retweeted)!!!

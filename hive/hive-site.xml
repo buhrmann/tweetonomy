@@ -988,7 +988,7 @@
   </property>
   <property>
     <name>hive.aux.jars.path</name>
-    <!-- <value>file:///usr/local/Cellar/hive-1.2.1/lib/twitterutil-1.0-SNAPSHOT.jar,file:///usr/local/Cellar/hive-1.2.1/lib/hive-serdes-1.0-SNAPSHOT.jar</value> -->
+      <value>file:///usr/local/Cellar/hive-1.2.1/hcatalog/share/hcatalog/hive-hcatalog-core-1.2.1.jar</value>
     <!-- <value>file:///~/Code/tweetonomy/jars/twitterutil-1.0-SNAPSHOT.jar,file:///~/Code/tweetonomy/jars/hive-serdes-1.0-SNAPSHOT.jar</value> -->
     <value/>
     <description>The location of the plugin jars that contain implementations of user defined functions and serdes.</description>

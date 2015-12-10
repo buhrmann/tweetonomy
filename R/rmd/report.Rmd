@@ -24,7 +24,7 @@ library(scales)
 library(pander)
 library(DT)
 
-knitr::opts_chunk$set(cache.rebuild=params$rebuild_cache, cache=T, fig.width=12, fig.height=8, echo=FALSE, 
+knitr::opts_chunk$set(cache.rebuild=params$rebuild_cache, cache=F, fig.width=12, fig.height=8, echo=FALSE, 
                       warning=FALSE, message=FALSE, fig.align="center", dev="svg")
 ```
 
@@ -44,8 +44,8 @@ Each graph layer consists of vertices representing twitter accounts. Edges betwe
 
 ```{r setup}
 # Basic setup
-version = "C"
-layer = "R"
+version = "G"
+layer = "M"
 com_algo = "louvain"
 num_coms = 10
 ```
